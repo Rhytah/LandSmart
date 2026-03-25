@@ -7,7 +7,6 @@ export default function MarketPanel() {
   const { contracts, account } = useWeb3();
   const toast = useToast();
   const [listings, setListings] = useState([]);
-  const [landCount, setLandCount] = useState(0);
   const [listForm, setListForm] = useState({ landID: "", price: "" });
   const [loading, setLoading] = useState("");
 
@@ -17,7 +16,6 @@ export default function MarketPanel() {
     setLoading("fetch");
     try {
       const count = await contracts.landRegistry.landCount();
-      setLandCount(Number(count));
       const results = [];
       for (let i = 1; i <= Number(count); i++) {
         try {
@@ -55,7 +53,7 @@ export default function MarketPanel() {
     try {
       const duty = await contracts.landMarket.calculateStampDuty(price);
       const tx = await contracts.landMarket.buyLand(landID, { value: price });
-      toast(`Purchasing land — stamp duty: ${ethers.formatEther(duty)} ETH auto-sent to treasury`, "info");
+      toast(`Purchasing — Transfer Tax: ${ethers.formatEther(duty)} ETH auto-sent to treasury`, "info");
       await tx.wait();
       toast("Land purchased! Ownership transferred on-chain.", "success");
       fetchListings();
@@ -75,13 +73,19 @@ export default function MarketPanel() {
     setLoading("");
   }
 
-  if (!account) return <div className="connect-prompt"><div className="connect-prompt-icon">◇</div><h2>Connect Wallet</h2><p>Connect MetaMask to access the land market.</p></div>;
+  if (!account) return (
+    <div className="connect-prompt">
+      <div className="connect-prompt-icon">◇</div>
+      <h2>Connect Wallet</h2>
+      <p>Connect MetaMask to access the land market.</p>
+    </div>
+  );
 
   return (
     <div>
       <ToastContainer />
       <div className="section-title">Land Market</div>
-      <div className="section-sub">Buy and sell verified land — stamp duty collected automatically on-chain</div>
+      <div className="section-sub">Buy and sell verified land — stamp duty / transfer tax collected automatically on-chain</div>
 
       {/* List for sale */}
       <div className="card">
@@ -100,7 +104,7 @@ export default function MarketPanel() {
         </div>
         {listForm.price && (
           <div style={{ padding: "10px 14px", background: "var(--surface2)", borderRadius: "var(--radius)", marginBottom: 12, fontSize: 11, color: "var(--text2)" }}>
-            <span style={{ color: "var(--text3)" }}>Stamp duty (4%): </span>
+            <span style={{ color: "var(--text3)" }}>Stamp Duty / Transfer Tax (4%): </span>
             <span style={{ color: "var(--gold)" }}>{(parseFloat(listForm.price || 0) * 0.04).toFixed(4)} ETH</span>
             <span style={{ color: "var(--text3)", marginLeft: 16 }}>Seller receives: </span>
             <span style={{ color: "var(--accent3)" }}>{(parseFloat(listForm.price || 0) * 0.96).toFixed(4)} ETH</span>
@@ -138,7 +142,7 @@ export default function MarketPanel() {
                   <div style={{ marginBottom: 12 }}>
                     <div className="price-large">{ethers.formatEther(price)} ETH</div>
                     <div className="price-sub">
-                      Stamp duty: {ethers.formatEther((price * 4n) / 100n)} ETH · Seller gets: {ethers.formatEther((price * 96n) / 100n)} ETH
+                      Transfer Tax: {ethers.formatEther((price * 4n) / 100n)} ETH · Seller gets: {ethers.formatEther((price * 96n) / 100n)} ETH
                     </div>
                   </div>
                   <div className="land-detail"><span className="land-detail-label">District</span><span className="land-detail-value">{listing.land?.district}</span></div>
@@ -147,6 +151,12 @@ export default function MarketPanel() {
                   <div className="land-detail">
                     <span className="land-detail-label">Seller</span>
                     <span className="address-cell">{listing.seller?.slice(0, 8)}...{listing.seller?.slice(-4)}</span>
+                  </div>
+                  <div className="land-detail">
+                    <span className="land-detail-label">Verify</span>
+                    <a href={`https://sepolia.etherscan.io/address/${listing.seller}`} target="_blank" rel="noreferrer" style={{ color: "var(--accent)", fontSize: 11 }}>
+                      Etherscan ↗
+                    </a>
                   </div>
                   <div className="land-actions">
                     {isOwner ? (
@@ -168,9 +178,12 @@ export default function MarketPanel() {
 
       {/* Stamp Duty Info */}
       <div className="card" style={{ borderColor: "rgba(240,165,0,0.2)", background: "rgba(240,165,0,0.03)" }}>
-        <div className="card-title" style={{ marginBottom: 12 }}><span style={{ color: "var(--gold)" }}>◎</span> Automatic Stamp Duty</div>
+        <div className="card-title" style={{ marginBottom: 12 }}><span style={{ color: "var(--gold)" }}>◎</span> Automatic Stamp Duty / Transfer Tax</div>
         <div style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.8 }}>
-          Every land sale automatically sends <strong style={{ color: "var(--gold)" }}>4% stamp duty</strong> to the government treasury wallet — no human involvement, no tax evasion possible. The smart contract enforces this rule on every transaction without exception.
+          Every land sale automatically sends <strong style={{ color: "var(--gold)" }}>4% stamp duty</strong> to
+          the government treasury wallet — enforcing Uganda's Stamp Duty Act, Kenya's Stamp Duty Act Cap 480,
+          and Botswana's Transfer Duty Act without any human involvement. No human collects it, no human
+          can intercept it. Tax evasion is structurally impossible.
         </div>
       </div>
     </div>

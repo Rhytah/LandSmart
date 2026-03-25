@@ -1,10 +1,7 @@
-// ============================================================
-// PASTE YOUR DEPLOYED CONTRACT ADDRESSES HERE
-// ============================================================
 export const ADDRESSES = {
-  identityRegistry: "YOUR_IDENTITY_REGISTRY_ADDRESS",
-  landRegistry: "YOUR_LAND_REGISTRY_ADDRESS",
-  landMarket: "YOUR_LAND_MARKET_ADDRESS",
+  identityRegistry: import.meta.env.VITE_IDENTITY_REGISTRY_ADDRESS ?? "",
+  landRegistry: import.meta.env.VITE_LAND_REGISTRY_ADDRESS ?? "",
+  landMarket: import.meta.env.VITE_LAND_MARKET_ADDRESS ?? "",
 };
 
 export const IDENTITY_REGISTRY_ABI = [

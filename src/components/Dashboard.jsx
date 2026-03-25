@@ -29,7 +29,6 @@ export default function Dashboard() {
         verified,
       });
 
-      // Fetch last 5 lands
       const total = Number(landCount);
       const ids = [];
       for (let i = Math.max(1, total - 4); i <= total; i++) ids.push(i);
@@ -51,16 +50,37 @@ export default function Dashboard() {
     return (
       <div className="connect-prompt">
         <div className="connect-prompt-icon">⬡</div>
-        <h2>LandChain Registry</h2>
-        <p>Connect your MetaMask wallet to interact with the blockchain land registry system.</p>
+        <h2>AntiCorrupt Land Registry</h2>
+        <p>Connect your MetaMask wallet to interact with the blockchain land registry system deployed on Sepolia testnet.</p>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="section-title">Dashboard</div>
-      <div className="section-sub">On-chain land registry overview — Sepolia Testnet</div>
+      {/* Project Info Banner */}
+      <div style={{
+        padding: "16px 20px",
+        background: "rgba(0,212,255,0.05)",
+        border: "1px solid rgba(0,212,255,0.15)",
+        borderRadius: "var(--radius)",
+        marginBottom: 24,
+        fontSize: 12,
+        color: "var(--text2)",
+        lineHeight: 1.8
+      }}>
+        <strong style={{ color: "var(--accent)" }}>
+          Blockchain for Government Transparency — Anti-Corruption Smart Contracts
+        </strong>
+        <br />
+        A decentralized land registry system deployed on Ethereum Sepolia testnet.
+        Smart contracts enforce transparent ownership, eliminate double selling, and
+        automate stamp duty collection — removing all discretionary human control
+        from the process. Built by students from 🇺🇬 Uganda · 🇰🇪 Kenya · 🇧🇼 Botswana.
+      </div>
+
+      <div className="section-title">Overview</div>
+      <div className="section-sub">On-chain land registry — Sepolia Testnet</div>
 
       <div className="stats-grid">
         <div className="stat-card">
@@ -119,6 +139,7 @@ export default function Dashboard() {
                   <th>Area (m²)</th>
                   <th>Owner</th>
                   <th>Status</th>
+                  <th>Verify</th>
                 </tr>
               </thead>
               <tbody>
@@ -132,6 +153,16 @@ export default function Dashboard() {
                       {land.currentOwner.slice(0, 8)}...{land.currentOwner.slice(-4)}
                     </td>
                     <td>{statusBadge(land.status)}</td>
+                    <td>
+                      <a
+                        href={`https://sepolia.etherscan.io/address/${land.currentOwner}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: "var(--accent)", fontSize: 11 }}
+                      >
+                        Etherscan ↗
+                      </a>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -148,6 +179,14 @@ export default function Dashboard() {
           <div style={{ marginBottom: 8 }}>
             <span style={{ color: "var(--text3)", marginRight: 16 }}>ADDRESS</span>
             <span className="address-cell">{account}</span>
+            <a
+              href={`https://sepolia.etherscan.io/address/${account}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "var(--accent)", fontSize: 11, marginLeft: 12 }}
+            >
+              View on Etherscan ↗
+            </a>
           </div>
           <div style={{ marginBottom: 8 }}>
             <span style={{ color: "var(--text3)", marginRight: 24 }}>ROLE</span>

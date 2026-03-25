@@ -13,12 +13,13 @@ export default function Header() {
         <div className="header-logo">⬡</div>
         <div>
           <div className="header-title">
-            Land<span>Chain</span>
+            Anti<span>Corrupt</span>
           </div>
-          <div className="header-subtitle">Uganda Anti-Corruption Registry</div>
+          <div className="header-subtitle">EA Blockchain Land Registry · 🇺🇬 🇰🇪 🇧🇼</div>
         </div>
       </div>
       <div className="header-right">
+        <div style={{ fontSize: 20, letterSpacing: 6 }}>🇺🇬 🇰🇪 🇧🇼</div>
         <div className="network-badge">
           <div className="network-dot" />
           Sepolia Testnet

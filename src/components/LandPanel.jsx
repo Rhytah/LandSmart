@@ -4,6 +4,27 @@ import { useWeb3 } from "../Web3Context";
 import { useToast, ToastContainer } from "./Toast";
 import { STATUS_NAMES } from "../contracts";
 
+const DISTRICTS = [
+  { label: "— Uganda —", value: "", disabled: true },
+  { label: "Kampala, Uganda", value: "Kampala" },
+  { label: "Wakiso, Uganda", value: "Wakiso" },
+  { label: "Entebbe, Uganda", value: "Entebbe" },
+  { label: "Mukono, Uganda", value: "Mukono" },
+  { label: "Jinja, Uganda", value: "Jinja" },
+  { label: "Gulu, Uganda", value: "Gulu" },
+  { label: "— Kenya —", value: "", disabled: true },
+  { label: "Nairobi, Kenya", value: "Nairobi" },
+  { label: "Mombasa, Kenya", value: "Mombasa" },
+  { label: "Kisumu, Kenya", value: "Kisumu" },
+  { label: "Nakuru, Kenya", value: "Nakuru" },
+  { label: "Eldoret, Kenya", value: "Eldoret" },
+  { label: "— Botswana —", value: "", disabled: true },
+  { label: "Gaborone, Botswana", value: "Gaborone" },
+  { label: "Francistown, Botswana", value: "Francistown" },
+  { label: "Maun, Botswana", value: "Maun" },
+  { label: "Serowe, Botswana", value: "Serowe" },
+];
+
 export default function LandPanel() {
   const { contracts, account } = useWeb3();
   const toast = useToast();
@@ -11,7 +32,10 @@ export default function LandPanel() {
   const [history, setHistory] = useState([]);
   const [selectedLand, setSelectedLand] = useState(null);
   const [loading, setLoading] = useState("");
-  const [form, setForm] = useState({ plotNumber: "", gpsCoordinates: "", district: "", areaSqMeters: "", registeredValue: "" });
+  const [form, setForm] = useState({
+    plotNumber: "", gpsCoordinates: "", district: "",
+    areaSqMeters: "", registeredValue: ""
+  });
   const [approveID, setApproveID] = useState("");
   const [disputeID, setDisputeID] = useState("");
   const [disputeReason, setDisputeReason] = useState("");
@@ -103,13 +127,19 @@ export default function LandPanel() {
     return <span className={`badge ${cls}`}>{STATUS_NAMES[n]}</span>;
   };
 
-  if (!account) return <div className="connect-prompt"><div className="connect-prompt-icon">◻</div><h2>Connect Wallet</h2><p>Connect MetaMask to manage land parcels.</p></div>;
+  if (!account) return (
+    <div className="connect-prompt">
+      <div className="connect-prompt-icon">◻</div>
+      <h2>Connect Wallet</h2>
+      <p>Connect MetaMask to manage land parcels.</p>
+    </div>
+  );
 
   return (
     <div>
       <ToastContainer />
       <div className="section-title">Land Registry</div>
-      <div className="section-sub">Register and manage land parcels on Sepolia blockchain</div>
+      <div className="section-sub">Register and manage land parcels — Uganda · Kenya · Botswana</div>
 
       {/* Register Form */}
       <div className="card">
@@ -122,8 +152,15 @@ export default function LandPanel() {
             <input className="form-input" placeholder="e.g. PLOT-001-KAMPALA" value={form.plotNumber} onChange={handle("plotNumber")} />
           </div>
           <div className="form-group">
-            <label className="form-label">District</label>
-            <input className="form-input" placeholder="e.g. Kampala" value={form.district} onChange={handle("district")} />
+            <label className="form-label">District / City</label>
+            <select className="form-input" value={form.district} onChange={handle("district")}>
+              <option value="">Select district...</option>
+              {DISTRICTS.map((d, i) =>
+                d.disabled
+                  ? <option key={i} disabled style={{ color: "var(--text3)", fontWeight: 700 }}>{d.label}</option>
+                  : <option key={i} value={d.value}>{d.label}</option>
+              )}
+            </select>
           </div>
         </div>
         <div className="form-row">
@@ -141,7 +178,7 @@ export default function LandPanel() {
           <input className="form-input" type="number" step="0.001" placeholder="e.g. 0.5" value={form.registeredValue} onChange={handle("registeredValue")} />
         </div>
         <button className="btn btn-primary btn-full" onClick={registerLand} disabled={loading === "register"}>
-          {loading === "register" ? "Registering..." : "Register Land on Blockchain"}
+          {loading === "register" ? "Registering on Blockchain..." : "Register Land on Blockchain"}
         </button>
       </div>
 
@@ -221,6 +258,15 @@ export default function LandPanel() {
                   <button className="btn btn-ghost" style={{ flex: 1, fontSize: 11 }} onClick={() => viewHistory(land.id)}>
                     View History
                   </button>
+                  <a
+                    href={`https://sepolia.etherscan.io/address/${land.currentOwner}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-ghost"
+                    style={{ flex: 1, fontSize: 11, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    Etherscan ↗
+                  </a>
                 </div>
               </div>
             ))}
