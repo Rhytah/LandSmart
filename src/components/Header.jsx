@@ -1,7 +1,7 @@
 import { useWeb3 } from "../Web3Context";
 
-export default function Header() {
-  const { account, connecting, error, connect, disconnect } = useWeb3();
+export default function Header({ theme, onToggleTheme }) {
+  const { account, connecting, connect, disconnect } = useWeb3();
 
   const shortAddress = account
     ? `${account.slice(0, 6)}...${account.slice(-4)}`
@@ -19,6 +19,16 @@ export default function Header() {
         </div>
       </div>
       <div className="header-right">
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={onToggleTheme}
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          aria-pressed={theme === "light"}
+          title={theme === "dark" ? "Light mode" : "Dark mode"}
+        >
+          {theme === "dark" ? "☀" : "☾"}
+        </button>
         <div style={{ fontSize: 20, letterSpacing: 6 }}>🇺🇬 🇰🇪 🇧🇼</div>
         <div className="network-badge">
           <div className="network-dot" />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Web3Provider } from "./Web3Context";
 import Header from "./components/Header";
 import Dashboard from "./components/Dashboard";
@@ -16,15 +16,40 @@ const TABS = [
   { id: "admin", label: "Admin", icon: "◉" },
 ];
 
+function getInitialTheme() {
+  try {
+    const stored = localStorage.getItem("landsmart-theme");
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {
+    /* ignore */
+  }
+  return window.matchMedia("(prefers-color-scheme: light)").matches
+    ? "light"
+    : "dark";
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [theme, setTheme] = useState(() => getInitialTheme());
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("landsmart-theme", theme);
+    } catch {
+      /* ignore */
+    }
+  }, [theme]);
+
+  const toggleTheme = () =>
+    setTheme((t) => (t === "dark" ? "light" : "dark"));
 
   return (
     <Web3Provider>
       <div className="app">
         <div className="bg-grid" />
         <div className="bg-glow" />
-        <Header />
+        <Header theme={theme} onToggleTheme={toggleTheme} />
         <nav className="tab-nav">
           {TABS.map((tab) => (
             <button
