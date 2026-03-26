@@ -11,28 +11,30 @@ export default function Header({ theme, onToggleTheme }) {
     <header className="header">
       <div className="header-brand">
         <div className="header-logo">⬡</div>
-        <div>
+        <div className="header-brand-text">
           <div className="header-title">
             Anti<span>Corrupt</span>
           </div>
           <div className="header-subtitle">EA Blockchain Land Registry · 🇺🇬 🇰🇪 🇧🇼</div>
         </div>
       </div>
-      <div className="header-right">
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={onToggleTheme}
-          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          aria-pressed={theme === "light"}
-          title={theme === "dark" ? "Light mode" : "Dark mode"}
-        >
-          {theme === "dark" ? "☀" : "☾"}
-        </button>
-        <div style={{ fontSize: 20, letterSpacing: 6 }}>🇺🇬 🇰🇪 🇧🇼</div>
+      <button
+        type="button"
+        className="theme-toggle"
+        onClick={onToggleTheme}
+        aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        aria-pressed={theme === "light"}
+        title={theme === "dark" ? "Light mode" : "Dark mode"}
+      >
+        {theme === "dark" ? "☀" : "☾"}
+      </button>
+      <div className="header-actions">
         <div className="network-badge">
           <div className="network-dot" />
-          Sepolia Testnet
+          <span className="network-label-full">Sepolia Testnet</span>
+          <span className="network-label-short" aria-hidden="true">
+            Sepolia
+          </span>
         </div>
         {account ? (
           <>

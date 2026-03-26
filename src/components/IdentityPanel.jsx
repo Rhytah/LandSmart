@@ -72,7 +72,7 @@ export default function IdentityPanel() {
       <div className="section-title">Identity Registry</div>
       <div className="section-sub">KYC verification — all identity data stored on-chain</div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="panel-grid-2">
         {/* Register */}
         <div className="card">
           <div className="card-header">
@@ -118,8 +118,8 @@ export default function IdentityPanel() {
         <div className="card-header">
           <div className="card-title"><span className="card-title-icon">◈</span>Look Up Identity</div>
         </div>
-        <div style={{ display: "flex", gap: 12 }}>
-          <input className="form-input" placeholder="Enter wallet address 0x..." value={checkAddr} onChange={(e) => setCheckAddr(e.target.value)} style={{ flex: 1 }} />
+        <div className="form-inline-row">
+          <input className="form-input" placeholder="Enter wallet address 0x..." value={checkAddr} onChange={(e) => setCheckAddr(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
           <button className="btn btn-ghost" onClick={checkIdentity} disabled={loading === "check"} style={{ whiteSpace: "nowrap" }}>
             {loading === "check" ? "..." : "Look Up"}
           </button>
