@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ethers } from "ethers";
 import { useWeb3 } from "../Web3Context";
 import { useToast, ToastContainer } from "./Toast";
 import { ROLE_NAMES } from "../contracts";
@@ -11,9 +12,37 @@ export default function AdminPanel() {
 
   async function assignRole() {
     if (!roleForm.address) return toast("Enter an address", "error");
+    let target;
+    try {
+      target = ethers.getAddress(roleForm.address.trim());
+    } catch {
+      return toast("Enter a valid 0x address", "error");
+    }
     setLoading("role");
     try {
-      const tx = await contracts.identityRegistry.assignRole(roleForm.address, Number(roleForm.role));
+      const raw = await contracts.identityRegistry.identities(target);
+      const w = raw?.walletAddress ?? raw?.[0];
+      let hasRegistration = false;
+      if (w) {
+        try {
+          hasRegistration = ethers.getAddress(w) !== ethers.ZeroAddress;
+        } catch {
+          hasRegistration = false;
+        }
+      }
+      if (!hasRegistration) {
+        const proceed = window.confirm(
+          "This address has not used Register Identity yet (no linked wallet on-chain). " +
+            "If you assign a role now and they register later, registration will set their role back to Citizen — " +
+            "you’d assign the role again after they register. " +
+            "Best practice: they register first, then you assign the role. Continue with assign anyway?"
+        );
+        if (!proceed) {
+          setLoading("");
+          return;
+        }
+      }
+      const tx = await contracts.identityRegistry.assignRole(target, Number(roleForm.role));
       toast("Assigning role...", "info");
       await tx.wait();
       toast(`Role "${ROLE_NAMES[Number(roleForm.role)]}" assigned successfully`, "success");

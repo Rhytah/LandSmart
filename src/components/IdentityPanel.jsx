@@ -125,6 +125,22 @@ export default function IdentityPanel() {
         setLoading("");
         return;
       }
+      try {
+        const currentRole = Number(await contracts.identityRegistry.getRole(me));
+        if (currentRole > 1) {
+          const proceed = window.confirm(
+            "This wallet already has an elevated role (Verifier / Government / Admin). " +
+              "Register Identity will set your role back to Citizen on-chain — that is how this contract works. " +
+              "An admin will need to assign your role again after registration. Continue?"
+          );
+          if (!proceed) {
+            setLoading("");
+            return;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
       const tx = await contracts.identityRegistry.registerIdentity(form.nationalID, form.fullName);
       toast("Transaction submitted — awaiting confirmation...", "info");
       await tx.wait();
@@ -251,9 +267,12 @@ export default function IdentityPanel() {
             {loading === "register" ? "Submitting..." : "Register Identity"}
           </button>
           <div style={{ marginTop: 12, fontSize: 11, color: "var(--text3)", lineHeight: 1.5 }}>
-            ◎ Your <strong style={{ color: "var(--text2)" }}>connected</strong> wallet is registered — one identity per address.
+            ◎ One registration per address. Each person connects with <em>their</em> MetaMask account to register.
             <br />
-            ◎ Each citizen must register while MetaMask is set to <em>their</em> account; you cannot register again from the same wallet.
+            ◎ <strong style={{ color: "var(--gold)" }}>registerIdentity</strong> always sets role to{" "}
+            <strong>Citizen</strong>. If you already had Verifier/Government/Admin from Admin → Assign Role, registering
+            again resets you to Citizen — admin must re-assign your role after (no smart-contract change needed; do steps in
+            the right order: register first, then get the role).
           </div>
         </div>
 
