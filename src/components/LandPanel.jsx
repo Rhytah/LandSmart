@@ -2,26 +2,41 @@ import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { useWeb3 } from "../Web3Context";
 import { useToast, ToastContainer } from "./Toast";
-import { STATUS_NAMES, ROLE_NAMES } from "../contracts";
+import { STATUS_NAMES, ROLE_NAMES, ADDRESSES } from "../contracts";
 
-function explainVerifierApproveError(e) {
-  const msg = String(e?.reason || e?.message || "").toLowerCase();
-  if (
+function shortHex(addr) {
+  if (!addr || addr.length < 12) return addr || "";
+  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
+function explainVerifierApproveError(e, link) {
+  const raw = e?.reason || e?.message || "Verifier approve failed";
+  const msg = String(raw).toLowerCase();
+  const authFail =
     msg.includes("verifier") ||
     msg.includes("not authorized") ||
     msg.includes("unauthorized") ||
     msg.includes("forbidden") ||
     msg.includes("access denied") ||
     msg.includes("only verifier") ||
-    msg.includes("role")
-  ) {
+    msg.includes("role");
+
+  if (authFail) {
+    if (link?.status === "mismatch" && link.onChain && link.expected) {
+      return (
+        `Land → Identity mismatch: Land reads ${shortHex(link.onChain)}, this app uses ${shortHex(link.expected)}. ` +
+        "Fix `.env` or redeploy Land so it points at the Identity you use in the app."
+      );
+    }
+    console.info(
+      "[LandSmart] Verifier approve: check role & KYC in Approve Land; Identity → Look Up. Land.identityRegistry() must match VITE_IDENTITY_REGISTRY_ADDRESS.",
+      { chainReason: raw, landIdentityLink: link }
+    );
     return (
-      "Land Registry rejected the transaction. Usual causes: (1) This wallet’s role on the Identity contract is not Verifier / Government / Admin — check Admin → Assign Role and Identity → Look Up. " +
-      "(2) KYC is still false — having the Verifier role is not enough on many deployments; a Gov/Admin must run Verify Identity for this same wallet. " +
-      "(3) The Land contract must use the same Identity Registry address as this app (redeploy or update link if mismatched)."
+      "Verifier approve failed — see role/KYC in Approve Land. If those look fine, press F12 → Console for details."
     );
   }
-  return e?.reason || e?.message || "Verifier approve failed";
+  return raw;
 }
 
 const DISTRICTS = [
@@ -61,8 +76,42 @@ export default function LandPanel() {
   const [disputeReason, setDisputeReason] = useState("");
   /** Role + KYC from Identity Registry — Land Registry often requires both for verifier actions. */
   const [identityGate, setIdentityGate] = useState({ role: null, verified: null });
+  /** Land contract’s identityRegistry() vs app .env — mismatch breaks verifierApprove auth. */
+  const [landIdentityLink, setLandIdentityLink] = useState({
+    status: "unknown",
+    onChain: null,
+    expected: null,
+  });
 
   const handle = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLandIdentityPointer() {
+      if (!contracts?.landRegistry) return;
+      if (!ADDRESSES.identityRegistry) {
+        if (!cancelled) setLandIdentityLink({ status: "unknown", onChain: null, expected: null });
+        return;
+      }
+      try {
+        const ptr = await contracts.landRegistry.identityRegistry();
+        const onChain = ethers.getAddress(ptr);
+        const expected = ethers.getAddress(ADDRESSES.identityRegistry);
+        if (cancelled) return;
+        setLandIdentityLink({
+          status: onChain === expected ? "ok" : "mismatch",
+          onChain,
+          expected,
+        });
+      } catch {
+        if (!cancelled) setLandIdentityLink({ status: "unknown", onChain: null, expected: null });
+      }
+    }
+    loadLandIdentityPointer();
+    return () => {
+      cancelled = true;
+    };
+  }, [contracts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,7 +192,7 @@ export default function LandPanel() {
       await tx.wait();
       toast("Verifier approval submitted", "success");
     } catch (e) {
-      toast(explainVerifierApproveError(e), "error");
+      toast(explainVerifierApproveError(e, landIdentityLink), "error");
     }
     setLoading("");
   }
@@ -202,6 +251,16 @@ export default function LandPanel() {
       <ToastContainer />
       <div className="section-title">Land Registry</div>
       <div className="section-sub">Register and manage land parcels — Uganda · Kenya · Botswana</div>
+
+      {landIdentityLink.status === "mismatch" && (
+        <div className="error-banner" style={{ marginBottom: 20 }}>
+          <strong>Contract wiring problem:</strong> this Land Registry on-chain points to Identity{" "}
+          <span className="address-cell">{landIdentityLink.onChain}</span>, but the app is using{" "}
+          <span className="address-cell">{landIdentityLink.expected}</span>. Verifier checks run against the Land’s
+          Identity — roles you see in the UI may not match. Redeploy Land linked to your current Identity or update
+          deployment / <code style={{ fontSize: 11 }}>.env</code> so they match.
+        </div>
+      )}
 
       {/* Register Form */}
       <div className="card">

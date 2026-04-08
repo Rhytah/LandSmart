@@ -10,6 +10,7 @@ export const ADDRESSES = {
   landMarket: envAddr("VITE_LAND_MARKET_ADDRESS"),
 };
 
+/** Matches `chain/IdentityRegistry.sol`: Role enum is 0=None … 4=Admin. */
 export const IDENTITY_REGISTRY_ABI = [
   "function registerIdentity(string nationalIDHash, string fullName) public",
   "function verifyIdentity(address citizen) public",
@@ -23,6 +24,7 @@ export const IDENTITY_REGISTRY_ABI = [
 ];
 
 export const LAND_REGISTRY_ABI = [
+  "function identityRegistry() view returns (address)",
   "function registerLand(string plotNumber, string gpsCoordinates, string district, uint256 areaSqMeters, uint256 registeredValue) public returns (uint256)",
   "function verifierApprove(uint256 landID) public",
   "function governmentApprove(uint256 landID) public",

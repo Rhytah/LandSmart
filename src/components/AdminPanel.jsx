@@ -16,7 +16,7 @@ export default function AdminPanel() {
       const tx = await contracts.identityRegistry.assignRole(roleForm.address, Number(roleForm.role));
       toast("Assigning role...", "info");
       await tx.wait();
-      toast(`Role "${ROLE_NAMES[roleForm.role]}" assigned successfully`, "success");
+      toast(`Role "${ROLE_NAMES[Number(roleForm.role)]}" assigned successfully`, "success");
       setRoleForm({ address: "", role: "2" });
     } catch (e) { toast(e.reason || e.message || "Failed", "error"); }
     setLoading("");
@@ -32,7 +32,7 @@ export default function AdminPanel() {
 
       <div className="card" style={{ borderColor: "rgba(255,59,92,0.2)", background: "rgba(255,59,92,0.02)" }}>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, padding: "10px 14px", background: "rgba(255,59,92,0.08)", borderRadius: "var(--radius)", border: "1px solid rgba(255,59,92,0.2)", fontSize: 12, color: "var(--red)" }}>
-          ⚠ Admin functions — only callable by the contract deployer wallet
+          ⚠ Admin functions — only wallets with the <strong>Admin</strong> role (see <code style={{ fontSize: 11 }}>onlyAdmin</code>); the stored <code style={{ fontSize: 11 }}>admin</code> address is not what the modifier checks
         </div>
 
         <div className="card-header" style={{ marginTop: 0 }}>
@@ -56,7 +56,9 @@ export default function AdminPanel() {
           {loading === "role" ? "Assigning..." : "Assign Role"}
         </button>
         <div style={{ marginTop: 12, fontSize: 11, color: "var(--text3)", lineHeight: 1.5 }}>
-          ◎ Roles control permissions only. Citizens still must <strong style={{ color: "var(--text2)" }}>Register Identity</strong> (Identity tab, their wallet) before Gov/Admin can run <strong style={{ color: "var(--text2)" }}>Verify Identity</strong>.
+          ◎ <strong style={{ color: "var(--gold)" }}>Order matters:</strong> user must <strong>Register Identity</strong> <em>first</em>, then you assign Verifier/Government. If you <code style={{ fontSize: 10 }}>assignRole</code> before they register, their later <code style={{ fontSize: 10 }}>registerIdentity</code> replaces the whole struct and <strong>resets role to Citizen</strong> — re-assign the role after registration.
+          <br />
+          ◎ Citizens need registration + <strong>Verify Identity</strong> (Gov/Admin) for KYC; <code style={{ fontSize: 10 }}>assignRole</code> alone does not set <code style={{ fontSize: 10 }}>isVerified</code>.
         </div>
       </div>
 
