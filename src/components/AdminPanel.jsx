@@ -55,6 +55,9 @@ export default function AdminPanel() {
         <button className="btn btn-primary btn-full" onClick={assignRole} disabled={loading === "role"}>
           {loading === "role" ? "Assigning..." : "Assign Role"}
         </button>
+        <div style={{ marginTop: 12, fontSize: 11, color: "var(--text3)", lineHeight: 1.5 }}>
+          ◎ Roles control permissions only. Citizens still must <strong style={{ color: "var(--text2)" }}>Register Identity</strong> (Identity tab, their wallet) before Gov/Admin can run <strong style={{ color: "var(--text2)" }}>Verify Identity</strong>.
+        </div>
       </div>
 
       {/* Role Reference */}

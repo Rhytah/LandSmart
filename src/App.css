@@ -117,6 +117,8 @@ tr:hover td{background:rgba(0,212,255,.02)}
 .divider{height:1px;background:var(--border);margin:24px 0}
 .gps-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(0,102,255,.08);border:1px solid rgba(0,102,255,.15);border-radius:2px;font-size:10px;color:var(--accent2)}
 .role-tag{display:inline-flex;padding:2px 8px;background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.15);border-radius:2px;font-size:10px;color:var(--gold);letter-spacing:1px;text-transform:uppercase}
+.identity-lookup-hint{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;line-height:1.55;color:var(--text3)}
+.identity-lookup-hint strong{color:var(--text2);font-weight:700}
 .price-large{font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--accent3)}
 .price-sub{font-size:11px;color:var(--text3);margin-top:4px}
 ::-webkit-scrollbar{width:6px;height:6px}

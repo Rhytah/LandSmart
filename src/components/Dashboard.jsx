@@ -3,6 +3,33 @@ import { ethers } from "ethers";
 import { useWeb3 } from "../Web3Context";
 import { ROLE_NAMES, STATUS_NAMES } from "../contracts";
 
+/** Normalizes getLand() tuple (ethers may expose named props, numeric indices, or both). */
+function readLandTuple(raw) {
+  if (raw == null) return {};
+  const r = raw;
+  const pick = (name, i) => r[name] ?? r[i];
+  return {
+    landID: pick("landID", 0),
+    currentOwner: pick("currentOwner", 1),
+    plotNumber: pick("plotNumber", 2),
+    gpsCoordinates: pick("gpsCoordinates", 3),
+    district: pick("district", 4),
+    areaSqMeters: pick("areaSqMeters", 5),
+    registeredValue: pick("registeredValue", 6),
+    status: pick("status", 7),
+    registrationDate: pick("registrationDate", 8),
+    governmentApproved: pick("governmentApproved", 9),
+    verifierApproved: pick("verifierApproved", 10),
+  };
+}
+
+function formatOwner(addr) {
+  if (addr == null || addr === "") return "—";
+  const s = typeof addr === "string" ? addr : String(addr);
+  if (s.length < 12) return s;
+  return `${s.slice(0, 8)}...${s.slice(-4)}`;
+}
+
 export default function Dashboard() {
   const { contracts, account } = useWeb3();
   const [stats, setStats] = useState({ landCount: 0, myLands: 0, role: 0, verified: false });
@@ -33,7 +60,11 @@ export default function Dashboard() {
       const ids = [];
       for (let i = Math.max(1, total - 4); i <= total; i++) ids.push(i);
       const lands = await Promise.all(ids.map((id) => contracts.landRegistry.getLand(id)));
-      setRecentLands(lands.map((l, i) => ({ ...l, id: ids[i] })).reverse());
+      setRecentLands(
+        lands
+          .map((l, i) => ({ ...readLandTuple(l), id: ids[i] }))
+          .reverse()
+      );
     } catch (e) {
       console.error(e);
     }
@@ -143,28 +174,33 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {recentLands.map((land) => (
+                {recentLands.map((land) => {
+                  const owner = land.currentOwner;
+                  return (
                   <tr key={land.id}>
                     <td style={{ color: "var(--text3)" }}>#{land.id}</td>
-                    <td style={{ color: "var(--text)", fontWeight: 600 }}>{land.plotNumber}</td>
-                    <td>{land.district}</td>
-                    <td>{Number(land.areaSqMeters).toLocaleString()}</td>
-                    <td className="address-cell">
-                      {land.currentOwner.slice(0, 8)}...{land.currentOwner.slice(-4)}
-                    </td>
+                    <td style={{ color: "var(--text)", fontWeight: 600 }}>{land.plotNumber ?? "—"}</td>
+                    <td>{land.district ?? "—"}</td>
+                    <td>{Number(land.areaSqMeters ?? 0).toLocaleString()}</td>
+                    <td className="address-cell">{formatOwner(owner)}</td>
                     <td>{statusBadge(land.status)}</td>
                     <td>
-                      <a
-                        href={`https://sepolia.etherscan.io/address/${land.currentOwner}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ color: "var(--accent)", fontSize: 11 }}
-                      >
-                        Etherscan ↗
-                      </a>
+                      {owner ? (
+                        <a
+                          href={`https://sepolia.etherscan.io/address/${owner}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ color: "var(--accent)", fontSize: 11 }}
+                        >
+                          Etherscan ↗
+                        </a>
+                      ) : (
+                        <span style={{ color: "var(--text3)", fontSize: 11 }}>—</span>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
