@@ -107,12 +107,20 @@ export default function IdentityPanel() {
       const existing = await contracts.identityRegistry.identities(me);
       if (isIdentityRegistered(existing)) {
         const row = readIdentityRow(existing);
+        const role = await contracts.identityRegistry.getRole(me);
+        setCheckAddr(me);
+        setCheckResult({
+          fullName: row.fullName,
+          nationalID: row.nationalID,
+          isVerified: row.isVerified,
+          role: Number(role),
+          verifiedAt: Number(row.verifiedAt),
+        });
         toast(
-          `Your connected wallet ${shortAddr(me)} already has an identity on this contract. ` +
-            (row.fullName ? `On-chain name: ${row.fullName}. ` : "") +
-            "Paste this address into Look Up to see the full record. " +
-            "If you are helping someone else, they must connect with their own wallet and register — you cannot register twice from the same account.",
-          "error"
+          row.fullName
+            ? `You’re already registered as “${row.fullName}”. Your record is shown in Look Up below — no second registration needed.`
+            : `Wallet ${shortAddr(me)} already has an identity. See Look Up below. To register someone else, they must use their own MetaMask account.`,
+          "info"
         );
         setLoading("");
         return;
@@ -126,9 +134,8 @@ export default function IdentityPanel() {
       const explained = explainRegisterError(e);
       if (explained === "register-duplicate") {
         toast(
-          `This wallet (${shortAddr(me)}) already registered on-chain (or the contract rejected a duplicate). ` +
-            "Use Look Up with your address to confirm. Another person must use their own MetaMask account to register.",
-          "error"
+          `This wallet (${shortAddr(me)}) already has an identity on-chain (one registration per address). Use Look Up to see it, or switch MetaMask to the citizen’s wallet to register them.`,
+          "info"
         );
       } else {
         toast(explained, "error");

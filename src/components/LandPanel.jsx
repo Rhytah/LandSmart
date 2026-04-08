@@ -2,7 +2,27 @@ import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { useWeb3 } from "../Web3Context";
 import { useToast, ToastContainer } from "./Toast";
-import { STATUS_NAMES } from "../contracts";
+import { STATUS_NAMES, ROLE_NAMES } from "../contracts";
+
+function explainVerifierApproveError(e) {
+  const msg = String(e?.reason || e?.message || "").toLowerCase();
+  if (
+    msg.includes("verifier") ||
+    msg.includes("not authorized") ||
+    msg.includes("unauthorized") ||
+    msg.includes("forbidden") ||
+    msg.includes("access denied") ||
+    msg.includes("only verifier") ||
+    msg.includes("role")
+  ) {
+    return (
+      "Land Registry rejected the transaction. Usual causes: (1) This wallet’s role on the Identity contract is not Verifier / Government / Admin — check Admin → Assign Role and Identity → Look Up. " +
+      "(2) KYC is still false — having the Verifier role is not enough on many deployments; a Gov/Admin must run Verify Identity for this same wallet. " +
+      "(3) The Land contract must use the same Identity Registry address as this app (redeploy or update link if mismatched)."
+    );
+  }
+  return e?.reason || e?.message || "Verifier approve failed";
+}
 
 const DISTRICTS = [
   { label: "— Uganda —", value: "", disabled: true },
@@ -39,8 +59,35 @@ export default function LandPanel() {
   const [approveID, setApproveID] = useState("");
   const [disputeID, setDisputeID] = useState("");
   const [disputeReason, setDisputeReason] = useState("");
+  /** Role + KYC from Identity Registry — Land Registry often requires both for verifier actions. */
+  const [identityGate, setIdentityGate] = useState({ role: null, verified: null });
 
   const handle = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadGate() {
+      if (!contracts?.identityRegistry || !account) {
+        setIdentityGate({ role: null, verified: null });
+        return;
+      }
+      try {
+        const [role, verified] = await Promise.all([
+          contracts.identityRegistry.getRole(account),
+          contracts.identityRegistry.isVerified(account),
+        ]);
+        if (!cancelled) {
+          setIdentityGate({ role: Number(role), verified: Boolean(verified) });
+        }
+      } catch {
+        if (!cancelled) setIdentityGate({ role: null, verified: null });
+      }
+    }
+    loadGate();
+    return () => {
+      cancelled = true;
+    };
+  }, [contracts, account]);
 
   useEffect(() => { if (contracts && account) fetchMyLands(); }, [contracts, account]);
 
@@ -76,13 +123,28 @@ export default function LandPanel() {
 
   async function verifierApprove() {
     if (!approveID) return toast("Enter land ID", "error");
+    if (identityGate.role !== null && identityGate.role < 2) {
+      toast(
+        `This wallet is “${ROLE_NAMES[identityGate.role] ?? identityGate.role}” on the Identity contract. Verifier approve needs role Verifier (2), Government (3), or Admin (4).`,
+        "error"
+      );
+      return;
+    }
+    if (identityGate.role !== null && identityGate.role >= 2 && identityGate.verified === false) {
+      toast(
+        "Note: KYC is still unverified for this wallet — many Land contracts require Gov/Admin to run Verify Identity first. Submitting tx anyway…",
+        "info"
+      );
+    }
     setLoading("vApprove");
     try {
       const tx = await contracts.landRegistry.verifierApprove(Number(approveID));
       toast("Submitting verifier approval...", "info");
       await tx.wait();
       toast("Verifier approval submitted", "success");
-    } catch (e) { toast(e.reason || e.message || "Failed", "error"); }
+    } catch (e) {
+      toast(explainVerifierApproveError(e), "error");
+    }
     setLoading("");
   }
 
@@ -188,6 +250,33 @@ export default function LandPanel() {
           <div className="card-header">
             <div className="card-title"><span className="card-title-icon">✓</span>Approve Land</div>
           </div>
+          {identityGate.role !== null && (
+            <div
+              style={{
+                marginBottom: 14,
+                padding: "10px 12px",
+                fontSize: 11,
+                lineHeight: 1.5,
+                color: "var(--text2)",
+                background: "var(--surface2)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius)",
+              }}
+            >
+              <strong style={{ color: "var(--text)" }}>This wallet on Identity Registry:</strong>{" "}
+              role <span className="role-tag">{ROLE_NAMES[identityGate.role] ?? identityGate.role}</span>
+              {" · "}
+              KYC{" "}
+              <span className={identityGate.verified ? "badge badge-verified" : "badge badge-pending"} style={{ fontSize: 9, padding: "2px 6px" }}>
+                {identityGate.verified ? "verified" : "not verified"}
+              </span>
+              {identityGate.role >= 2 && !identityGate.verified && (
+                <span style={{ display: "block", marginTop: 8, color: "var(--gold)" }}>
+                  Verifier actions often require KYC verified — use Identity → Verify Identity (Gov/Admin) for this address.
+                </span>
+              )}
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Land ID</label>
             <input className="form-input" type="number" placeholder="e.g. 1" value={approveID} onChange={(e) => setApproveID(e.target.value)} />
