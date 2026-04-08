@@ -1,7 +1,7 @@
 import { useWeb3 } from "../Web3Context";
 
 export default function Header({ theme, onToggleTheme }) {
-  const { account, connecting, connect, disconnect } = useWeb3();
+  const { account, connecting, error, connect, disconnect } = useWeb3();
 
   const shortAddress = account
     ? `${account.slice(0, 6)}...${account.slice(-4)}`
@@ -52,6 +52,11 @@ export default function Header({ theme, onToggleTheme }) {
           </button>
         )}
       </div>
+      {error && (
+        <div className="header-error-banner error-banner" role="alert">
+          {error}
+        </div>
+      )}
     </header>
   );
 }

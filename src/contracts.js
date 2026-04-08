@@ -1,7 +1,13 @@
+function envAddr(key) {
+  const v = import.meta.env[key];
+  return (typeof v === "string" ? v : "").trim();
+}
+
+/** Trims env values. Empty strings become "" — do not pass raw "" to ethers.Contract (ethers treats it as ENS). */
 export const ADDRESSES = {
-  identityRegistry: import.meta.env.VITE_IDENTITY_REGISTRY_ADDRESS ?? "",
-  landRegistry: import.meta.env.VITE_LAND_REGISTRY_ADDRESS ?? "",
-  landMarket: import.meta.env.VITE_LAND_MARKET_ADDRESS ?? "",
+  identityRegistry: envAddr("VITE_IDENTITY_REGISTRY_ADDRESS"),
+  landRegistry: envAddr("VITE_LAND_REGISTRY_ADDRESS"),
+  landMarket: envAddr("VITE_LAND_MARKET_ADDRESS"),
 };
 
 export const IDENTITY_REGISTRY_ABI = [

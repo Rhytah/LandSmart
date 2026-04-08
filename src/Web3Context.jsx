@@ -9,6 +9,41 @@ import {
 
 const Web3Context = createContext(null);
 
+const CONTRACT_ENV_KEYS = [
+  ["identityRegistry", "Identity Registry", "VITE_IDENTITY_REGISTRY_ADDRESS"],
+  ["landRegistry", "Land Registry", "VITE_LAND_REGISTRY_ADDRESS"],
+  ["landMarket", "Land Market", "VITE_LAND_MARKET_ADDRESS"],
+];
+
+function resolveContractAddresses() {
+  const resolved = {};
+  const missing = [];
+  const invalid = [];
+  for (const [key, label, envKey] of CONTRACT_ENV_KEYS) {
+    const raw = ADDRESSES[key];
+    if (!raw) {
+      missing.push(envKey);
+      continue;
+    }
+    if (!ethers.isAddress(raw)) {
+      invalid.push(`${label} (${envKey}="${raw}")`);
+      continue;
+    }
+    resolved[key] = ethers.getAddress(raw);
+  }
+  if (missing.length) {
+    return {
+      error: `Contract address(es) missing in .env: ${missing.join(", ")}. Set each to your deployed 0x address and restart the dev server.`,
+    };
+  }
+  if (invalid.length) {
+    return {
+      error: `Invalid contract address: ${invalid.join("; ")}. Use a valid Sepolia contract address (0x + 40 hex chars).`,
+    };
+  }
+  return { addresses: resolved };
+}
+
 export function Web3Provider({ children }) {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
@@ -37,18 +72,26 @@ export function Web3Provider({ children }) {
         return;
       }
 
+      const resolved = resolveContractAddresses();
+      if (resolved.error) {
+        setError(resolved.error);
+        setConnecting(false);
+        return;
+      }
+      const a = resolved.addresses;
+
       const identityRegistry = new ethers.Contract(
-        ADDRESSES.identityRegistry,
+        a.identityRegistry,
         IDENTITY_REGISTRY_ABI,
         web3Signer
       );
       const landRegistry = new ethers.Contract(
-        ADDRESSES.landRegistry,
+        a.landRegistry,
         LAND_REGISTRY_ABI,
         web3Signer
       );
       const landMarket = new ethers.Contract(
-        ADDRESSES.landMarket,
+        a.landMarket,
         LAND_MARKET_ABI,
         web3Signer
       );
@@ -68,6 +111,7 @@ export function Web3Provider({ children }) {
     setSigner(null);
     setAccount(null);
     setContracts(null);
+    setError(null);
   }, []);
 
   return (
