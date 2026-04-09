@@ -3,6 +3,63 @@ import { ethers } from "ethers";
 import { useWeb3 } from "../Web3Context";
 import { useToast, ToastContainer } from "./Toast";
 
+function pickTuple(r, name, i) {
+  if (r == null) return undefined;
+  return r[name] ?? r[i];
+}
+
+function readListingTuple(raw) {
+  if (raw == null) return {};
+  const r = raw;
+  return {
+    landID: pickTuple(r, "landID", 0),
+    seller: pickTuple(r, "seller", 1),
+    askingPrice: pickTuple(r, "askingPrice", 2),
+    isActive: pickTuple(r, "isActive", 3),
+    listedAt: pickTuple(r, "listedAt", 4),
+  };
+}
+
+function readLandTuple(raw) {
+  if (raw == null) return {};
+  const r = raw;
+  return {
+    plotNumber: pickTuple(r, "plotNumber", 2),
+    gpsCoordinates: pickTuple(r, "gpsCoordinates", 3),
+    district: pickTuple(r, "district", 4),
+    areaSqMeters: pickTuple(r, "areaSqMeters", 5),
+    currentOwner: pickTuple(r, "currentOwner", 1),
+  };
+}
+
+function listingIsActive(v) {
+  if (v === true) return true;
+  if (v === false) return false;
+  try {
+    return BigInt(v) === 1n;
+  } catch {
+    return Number(v) === 1;
+  }
+}
+
+function toBigIntWei(v) {
+  if (v == null) return 0n;
+  try {
+    return BigInt(v);
+  } catch {
+    return 0n;
+  }
+}
+
+function safeFormatEther(wei) {
+  try {
+    if (wei == null) return "0";
+    return ethers.formatEther(wei);
+  } catch {
+    return "—";
+  }
+}
+
 export default function MarketPanel() {
   const { contracts, account } = useWeb3();
   const toast = useToast();
@@ -19,12 +76,18 @@ export default function MarketPanel() {
       const results = [];
       for (let i = 1; i <= Number(count); i++) {
         try {
-          const listing = await contracts.landMarket.listings(i);
-          if (listing.isActive) {
-            const land = await contracts.landRegistry.getLand(i);
-            results.push({ ...listing, land, id: i });
-          }
-        } catch (e) {}
+          const row = readListingTuple(await contracts.landMarket.listings(i));
+          if (!listingIsActive(row.isActive)) continue;
+          const landRaw = await contracts.landRegistry.getLand(i);
+          results.push({
+            ...row,
+            askingPrice: toBigIntWei(row.askingPrice),
+            land: readLandTuple(landRaw),
+            id: i,
+          });
+        } catch (e) {
+          /* no listing for this id */
+        }
       }
       setListings(results);
     } catch (e) { console.error(e); }
@@ -51,8 +114,9 @@ export default function MarketPanel() {
   async function buyLand(landID, price) {
     setLoading(`buy-${landID}`);
     try {
-      const duty = await contracts.landMarket.calculateStampDuty(price);
-      const tx = await contracts.landMarket.buyLand(landID, { value: price });
+      const priceWei = toBigIntWei(price);
+      const duty = await contracts.landMarket.calculateStampDuty(priceWei);
+      const tx = await contracts.landMarket.buyLand(landID, { value: priceWei });
       toast(`Purchasing — Transfer Tax: ${ethers.formatEther(duty)} ETH auto-sent to treasury`, "info");
       await tx.wait();
       toast("Land purchased! Ownership transferred on-chain.", "success");
@@ -131,26 +195,38 @@ export default function MarketPanel() {
         ) : (
           <div className="land-grid">
             {listings.map((listing) => {
-              const isOwner = listing.seller?.toLowerCase() === account?.toLowerCase();
-              const price = listing.askingPrice;
+              let sellerLc = "";
+              try {
+                sellerLc = listing.seller ? ethers.getAddress(listing.seller).toLowerCase() : "";
+              } catch {
+                sellerLc = (listing.seller && String(listing.seller).toLowerCase()) || "";
+              }
+              const isOwner = sellerLc === account?.toLowerCase();
+              const price = toBigIntWei(listing.askingPrice);
+              const tax = (price * 4n) / 100n;
+              const sellerReceives = (price * 96n) / 100n;
               return (
                 <div className="land-card" key={listing.id}>
                   <div className="land-card-header">
-                    <div className="land-plot">{listing.land?.plotNumber}</div>
+                    <div className="land-plot">{listing.land?.plotNumber || `Land #${listing.id}`}</div>
                     <span className="badge badge-sale">For Sale</span>
                   </div>
                   <div style={{ marginBottom: 12 }}>
-                    <div className="price-large">{ethers.formatEther(price)} ETH</div>
+                    <div className="price-large">{safeFormatEther(price)} ETH</div>
                     <div className="price-sub">
-                      Transfer Tax: {ethers.formatEther((price * 4n) / 100n)} ETH · Seller gets: {ethers.formatEther((price * 96n) / 100n)} ETH
+                      Transfer Tax: {safeFormatEther(tax)} ETH · Seller gets: {safeFormatEther(sellerReceives)} ETH
                     </div>
                   </div>
-                  <div className="land-detail"><span className="land-detail-label">District</span><span className="land-detail-value">{listing.land?.district}</span></div>
-                  <div className="land-detail"><span className="land-detail-label">Area</span><span className="land-detail-value">{Number(listing.land?.areaSqMeters).toLocaleString()} m²</span></div>
+                  <div className="land-detail"><span className="land-detail-label">District</span><span className="land-detail-value">{listing.land?.district ?? "—"}</span></div>
+                  <div className="land-detail"><span className="land-detail-label">Area</span><span className="land-detail-value">{Number(listing.land?.areaSqMeters ?? 0).toLocaleString()} m²</span></div>
                   <div className="land-detail"><span className="land-detail-label">GPS</span><span className="gps-tag">◎ {listing.land?.gpsCoordinates}</span></div>
                   <div className="land-detail">
                     <span className="land-detail-label">Seller</span>
-                    <span className="address-cell">{listing.seller?.slice(0, 8)}...{listing.seller?.slice(-4)}</span>
+                    <span className="address-cell">
+                      {listing.seller
+                        ? `${String(listing.seller).slice(0, 8)}...${String(listing.seller).slice(-4)}`
+                        : "—"}
+                    </span>
                   </div>
                   <div className="land-detail">
                     <span className="land-detail-label">Verify</span>
