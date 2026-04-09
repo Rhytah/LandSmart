@@ -9,6 +9,36 @@ function shortHex(addr) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
+/** Same shape as Dashboard — ethers `getLand` can return a Result tuple. */
+function readLandTuple(raw) {
+  if (raw == null) return {};
+  const r = raw;
+  const pick = (name, i) => r[name] ?? r[i];
+  return {
+    landID: pick("landID", 0),
+    currentOwner: pick("currentOwner", 1),
+    plotNumber: pick("plotNumber", 2),
+    gpsCoordinates: pick("gpsCoordinates", 3),
+    district: pick("district", 4),
+    areaSqMeters: pick("areaSqMeters", 5),
+    registeredValue: pick("registeredValue", 6),
+    status: pick("status", 7),
+    registrationDate: pick("registrationDate", 8),
+    governmentApproved: pick("governmentApproved", 9),
+    verifierApproved: pick("verifierApproved", 10),
+  };
+}
+
+function normBool(v) {
+  if (v === true) return true;
+  if (v === false) return false;
+  try {
+    return BigInt(v) === 1n;
+  } catch {
+    return Number(v) === 1;
+  }
+}
+
 function explainVerifierApproveError(e, link) {
   const raw = e?.reason || e?.message || "Verifier approve failed";
   const msg = String(raw).toLowerCase();
@@ -145,7 +175,17 @@ export default function LandPanel() {
     try {
       const ids = await contracts.landRegistry.getLandsByOwner(account);
       const lands = await Promise.all(ids.map((id) => contracts.landRegistry.getLand(Number(id))));
-      setMyLands(lands.map((l, i) => ({ ...l, id: Number(ids[i]) })));
+      setMyLands(
+        lands.map((l, i) => {
+          const row = readLandTuple(l);
+          return {
+            ...row,
+            id: Number(ids[i]),
+            verifierApproved: normBool(row.verifierApproved),
+            governmentApproved: normBool(row.governmentApproved),
+          };
+        })
+      );
     } catch (e) { console.error(e); }
     setLoading("");
   }
@@ -191,6 +231,7 @@ export default function LandPanel() {
       toast("Submitting verifier approval...", "info");
       await tx.wait();
       toast("Verifier approval submitted", "success");
+      await fetchMyLands();
     } catch (e) {
       toast(explainVerifierApproveError(e, landIdentityLink), "error");
     }
@@ -341,12 +382,15 @@ export default function LandPanel() {
             <input className="form-input" type="number" placeholder="e.g. 1" value={approveID} onChange={(e) => setApproveID(e.target.value)} />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={verifierApprove} disabled={loading === "vApprove"}>
+            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={verifierApprove} disabled={loading === "vApprove" || loading === "gApprove"}>
               {loading === "vApprove" ? "..." : "Verifier Approve"}
             </button>
-            <button className="btn btn-success" style={{ flex: 1 }} onClick={governmentApprove} disabled={loading === "gApprove"}>
+            <button className="btn btn-success" style={{ flex: 1 }} onClick={governmentApprove} disabled={loading === "gApprove" || loading === "vApprove"}>
               {loading === "gApprove" ? "..." : "Gov Approve"}
             </button>
+          </div>
+          <div style={{ marginTop: 10, fontSize: 10, color: "var(--text3)", lineHeight: 1.5 }}>
+            On-chain flow is usually <strong>two steps</strong>: Verifier Approve, then Government Approve. Government stays pending until someone with Gov/Admin runs the second tx.
           </div>
         </div>
 
@@ -375,6 +419,9 @@ export default function LandPanel() {
           <div className="card-title"><span className="card-title-icon">◻</span>My Land Parcels</div>
           <button className="btn btn-ghost" style={{ fontSize: 11, padding: "6px 14px" }} onClick={fetchMyLands}>↻ Refresh</button>
         </div>
+        <p style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.5, marginBottom: 12 }}>
+          Only parcels <strong>registered to your connected wallet</strong> appear here. If you approved land as a Verifier but do not own it, your list may stay empty while the approval still succeeded — the <strong>owner</strong> sees Verifier/Gov badges after refresh.
+        </p>
         {loading === "fetch" ? (
           <div className="loading"><div className="spinner" /> Loading your lands...</div>
         ) : myLands.length === 0 ? (
@@ -392,7 +439,7 @@ export default function LandPanel() {
                 </div>
                 <div className="land-detail"><span className="land-detail-label">ID</span><span className="land-detail-value">#{land.id}</span></div>
                 <div className="land-detail"><span className="land-detail-label">District</span><span className="land-detail-value">{land.district}</span></div>
-                <div className="land-detail"><span className="land-detail-label">Area</span><span className="land-detail-value">{Number(land.areaSqMeters).toLocaleString()} m²</span></div>
+                <div className="land-detail"><span className="land-detail-label">Area</span><span className="land-detail-value">{Number(land.areaSqMeters ?? 0).toLocaleString()} m²</span></div>
                 <div className="land-detail"><span className="land-detail-label">GPS</span><span className="gps-tag">◎ {land.gpsCoordinates}</span></div>
                 <div className="land-detail">
                   <span className="land-detail-label">Verifier</span>
