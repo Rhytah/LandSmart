@@ -39,6 +39,9 @@ function normBool(v) {
   }
 }
 
+/** Verifier / Government / Admin also see recent registry IDs (plus every ID they own). */
+const APPROVER_LAND_ID_WINDOW = 300;
+
 function explainVerifierApproveError(e, link) {
   const raw = e?.reason || e?.message || "Verifier approve failed";
   const msg = String(raw).toLowerCase();
@@ -173,20 +176,48 @@ export default function LandPanel() {
   async function fetchMyLands() {
     setLoading("fetch");
     try {
-      const ids = await contracts.landRegistry.getLandsByOwner(account);
-      const lands = await Promise.all(ids.map((id) => contracts.landRegistry.getLand(Number(id))));
+      const me = ethers.getAddress(account);
+      const ownerIdsRaw = await contracts.landRegistry.getLandsByOwner(account);
+      const ownerIds = ownerIdsRaw.map((x) => Number(x));
+      const idSet = new Set(ownerIds);
+
+      let role = 0;
+      try {
+        role = Number(await contracts.identityRegistry.getRole(account));
+      } catch {
+        role = 0;
+      }
+
+      const total = Number(await contracts.landRegistry.landCount());
+      if (role >= 2 && total > 0) {
+        const start = Math.max(1, total - APPROVER_LAND_ID_WINDOW + 1);
+        for (let id = start; id <= total; id++) idSet.add(id);
+      }
+
+      const ids = [...idSet].sort((a, b) => a - b);
+      const lands = await Promise.all(ids.map((id) => contracts.landRegistry.getLand(id)));
       setMyLands(
         lands.map((l, i) => {
           const row = readLandTuple(l);
+          let ownerMatch = false;
+          try {
+            const ow = row.currentOwner;
+            if (ow) ownerMatch = ethers.getAddress(ow) === me;
+          } catch {
+            ownerMatch = false;
+          }
           return {
             ...row,
-            id: Number(ids[i]),
+            id: ids[i],
             verifierApproved: normBool(row.verifierApproved),
             governmentApproved: normBool(row.governmentApproved),
+            isOwned: ownerMatch,
           };
         })
       );
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
     setLoading("");
   }
 
@@ -246,7 +277,7 @@ export default function LandPanel() {
       toast("Submitting government approval...", "info");
       await tx.wait();
       toast("Land approved by government!", "success");
-      fetchMyLands();
+      await fetchMyLands();
     } catch (e) { toast(e.reason || e.message || "Failed", "error"); }
     setLoading("");
   }
@@ -413,14 +444,20 @@ export default function LandPanel() {
         </div>
       </div>
 
-      {/* My Lands */}
+      {/* Parcels: owner + approver view */}
       <div className="card">
         <div className="card-header">
-          <div className="card-title"><span className="card-title-icon">◻</span>My Land Parcels</div>
+          <div className="card-title"><span className="card-title-icon">◻</span>Land Parcels</div>
           <button className="btn btn-ghost" style={{ fontSize: 11, padding: "6px 14px" }} onClick={fetchMyLands}>↻ Refresh</button>
         </div>
         <p style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.5, marginBottom: 12 }}>
-          Only parcels <strong>registered to your connected wallet</strong> appear here. If you approved land as a Verifier but do not own it, your list may stay empty while the approval still succeeded — the <strong>owner</strong> sees Verifier/Gov badges after refresh.
+          <strong>Owners</strong> see every parcel tied to this wallet. Wallets with Identity role{" "}
+          <span className="role-tag" style={{ fontSize: 9 }}>Verifier</span>,{" "}
+          <span className="role-tag" style={{ fontSize: 9 }}>Government</span>, or{" "}
+          <span className="role-tag" style={{ fontSize: 9 }}>Admin</span> also see the latest{" "}
+          {APPROVER_LAND_ID_WINDOW} land IDs on the registry (plus any they own) so approvals and status stay visible
+          without owning the plot. <span className="badge badge-default" style={{ fontSize: 9 }}>You own</span> vs{" "}
+          <span className="badge badge-default" style={{ fontSize: 9 }}>Registry</span> is shown on each card.
         </p>
         {loading === "fetch" ? (
           <div className="loading"><div className="spinner" /> Loading your lands...</div>
@@ -434,10 +471,31 @@ export default function LandPanel() {
             {myLands.map((land) => (
               <div className="land-card" key={land.id}>
                 <div className="land-card-header">
-                  <div className="land-plot">{land.plotNumber}</div>
+                  <div>
+                    <div className="land-plot">{land.plotNumber || `Parcel #${land.id}`}</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                      {land.isOwned ? (
+                        <span className="badge badge-verified" style={{ fontSize: 9, textTransform: "uppercase" }}>
+                          You own
+                        </span>
+                      ) : (
+                        <span className="badge badge-default" style={{ fontSize: 9, textTransform: "uppercase" }}>
+                          Registry
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   {statusBadge(land.status)}
                 </div>
                 <div className="land-detail"><span className="land-detail-label">ID</span><span className="land-detail-value">#{land.id}</span></div>
+                {!land.isOwned && land.currentOwner && (
+                  <div className="land-detail">
+                    <span className="land-detail-label">Owner</span>
+                    <span className="land-detail-value address-cell" title={land.currentOwner}>
+                      {shortHex(land.currentOwner)}
+                    </span>
+                  </div>
+                )}
                 <div className="land-detail"><span className="land-detail-label">District</span><span className="land-detail-value">{land.district}</span></div>
                 <div className="land-detail"><span className="land-detail-label">Area</span><span className="land-detail-value">{Number(land.areaSqMeters ?? 0).toLocaleString()} m²</span></div>
                 <div className="land-detail"><span className="land-detail-label">GPS</span><span className="gps-tag">◎ {land.gpsCoordinates}</span></div>
